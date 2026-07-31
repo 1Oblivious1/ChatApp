@@ -1,24 +1,29 @@
-using ChatApp.Api.Data;
-using Microsoft.EntityFrameworkCore;
+using ChatApp.Api.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// TODO (Этап 4-5): SignalR + Redis backplane, CORS, health checks для готовности к продакшену.
+
+builder
+    .AddData()
+    .AddApplicationServices()
+    .AddBearerAuthentication()
+    .AddSwagger();
 
 builder.Services.AddControllers();
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
-
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(); // доступно на /swagger
+}
 
-app.UseHttpsRedirection();
-
+app.UseAuthentication();
 app.UseAuthorization();
 
-
 app.MapControllers();
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.Run();

@@ -23,6 +23,10 @@
 
 		<!-- Redis backplane для SignalR (пригодится при масштабировании, подключим позже) -->
 		<PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="8.0.8" />
+
+		<!-- Swagger/OpenAPI — только для отладки, регистрируем ниже условно только для Development.
+         Версия 10.x тянет Microsoft.OpenApi 2.x с новой моделью типов (см. комментарии в Program.cs) -->
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
 	</ItemGroup>
 
 </Project>

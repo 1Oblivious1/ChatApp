@@ -1,6 +1,6 @@
-﻿using ChatApp.Api.Models;
+﻿using ChatApp.Api.DTOs;
+using ChatApp.Api.Models;
 using Microsoft.EntityFrameworkCore;
-using System.Reflection.Emit;
 
 namespace ChatApp.Api.Data;
 
@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ChatRoom> Rooms => Set<ChatRoom>();
     public DbSet<RoomMember> RoomMembers => Set<RoomMember>();
     public DbSet<Message> Messages => Set<Message>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -71,6 +72,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .WithMany(u => u.Messages)
                 .HasForeignKey(m => m.SenderId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ---------- RefreshToken ----------
+        modelBuilder.Entity<RefreshToken>(e =>
+        {
+            // Поиск токена при обращении к /auth/refresh идёт по хэшу — нужен индекс,
+            // иначе на каждый refresh будет full scan таблицы.
+            e.HasIndex(rt => rt.TokenHash).IsUnique();
+
+            // Для "выйти со всех устройств" — выборка всех активных токенов юзера
+            e.HasIndex(rt => rt.UserId);
+
+            e.HasOne(rt => rt.User)
+                .WithMany()
+                .HasForeignKey(rt => rt.UserId)
+                .OnDelete(DeleteBehavior.Cascade); // удалили юзера -> удалились его токены
         });
     }
 }

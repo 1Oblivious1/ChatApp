@@ -1,6 +1,49 @@
 @ChatApp.Api_HostAddress = http://localhost:5273
 
-GET {{ChatApp.Api_HostAddress}}/weatherforecast/
+### Регистрация нового пользователя
+POST {{ChatApp.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
 Accept: application/json
+
+{
+  "userName": "alice",
+  "email": "alice@example.com",
+  "password": "SuperSecret123"
+}
+
+###
+
+### Логин — обрати внимание, это POST, а не GET
+POST {{ChatApp.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "userNameOrEmail": "alice",
+  "password": "SuperSecret123"
+}
+
+###
+
+### Обновление токенов — refreshToken взять из ответа на register/login выше
+POST {{ChatApp.Api_HostAddress}}/api/auth/refresh
+Content-Type: application/json
+Accept: application/json
+
+{
+  "refreshToken": "QuhjiPT7j70zGdaw2NNRTKtmKLtf7Zhw+8rA6WZHMoI="
+}
+
+###
+
+### Logout — требует Authorization header с access-токеном (эндпоинт помечен [Authorize])
+POST {{ChatApp.Api_HostAddress}}/api/auth/logout
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6ImRkNmQ1ODllLTRkN2QtNDRlOS04N2MzLWNlMzMxNWVjNjMzMiIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiOiJhbGljZSIsImp0aSI6IjA2ZjI2ZDBmLTU1MDQtNDE0My05MTM4LTFiYTQ1YzUzZWQyYiIsImV4cCI6MTc4NTQzMDIxMywiaXNzIjoiQ2hhdEFwcCIsImF1ZCI6IkNoYXRBcHAuQ2xpZW50In0.5mhN8QU5w3x2Ce4BBnITybw9D3X0njzZnFJbYLNvWo0
+
+{
+  "refreshToken": "zZhFnK2gxFx5hLY3IWLrMBOZTk14azOF2KBMwk5JwSA="
+}
 
 ###
