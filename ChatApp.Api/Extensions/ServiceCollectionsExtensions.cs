@@ -34,7 +34,7 @@ public static class ServiceCollectionExtensions
 
             options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
             {
-                [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+                [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
             });
         });
 
@@ -64,7 +64,29 @@ public static class ServiceCollectionExtensions
                     ValidAudience = builder.Configuration["Jwt:Audience"],
                     IssuerSigningKey = new SymmetricSecurityKey(
                         Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
+
+                    // По умолчанию есть допуск в 5 минут на рассинхрон часов между серверами —
+                    // для access-токена с 15-минутным временем жизни это ощутимая доля, обнуляем.
                     ClockSkew = TimeSpan.Zero
+                };
+
+                // SignalR не может передать заголовок Authorization в WebSocket-хендшейке
+                // из браузера — токен приходит через query string (?access_token=...).
+                // Перехватываем его здесь и подставляем как context.Token, ТОЛЬКО для
+                // путей хаба — на обычные REST-запросы это не должно влиять, там токен
+                // и так приходит нормальным заголовком Authorization.
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        var path = context.HttpContext.Request.Path;
+
+                        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/chat"))
+                            context.Token = accessToken;
+
+                        return Task.CompletedTask;
+                    }
                 };
             });
 
@@ -76,6 +98,25 @@ public static class ServiceCollectionExtensions
     public static WebApplicationBuilder AddApplicationServices(this WebApplicationBuilder builder)
     {
         builder.Services.AddScoped<ITokenService, TokenService>();
+        builder.Services.AddScoped<IMessageService, MessageService>();
+
+        // Singleton — трекер соединений должен жить одним общим экземпляром на всё
+        // приложение (в памяти процесса), а не создаваться заново на каждый запрос,
+        // как это было бы со Scoped.
+        builder.Services.AddSingleton<IConnectionTracker, InMemoryConnectionTracker>();
+
+        return builder;
+    }
+
+    public static WebApplicationBuilder AddSignalRServices(this WebApplicationBuilder builder)
+    {
+        builder.Services.AddSignalR();
+
+        // TODO (Этап масштабирования): при переходе на несколько инстансов приложения
+        // сюда добавляется Redis backplane:
+        // builder.Services.AddSignalR().AddStackExchangeRedis(builder.Configuration.GetConnectionString("Redis"));
+        // и InMemoryConnectionTracker выше меняется на Redis-based реализацию —
+        // иначе группы и presence не будут синхронизированы между инстансами.
 
         return builder;
     }

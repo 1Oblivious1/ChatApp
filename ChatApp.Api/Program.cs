@@ -8,6 +8,7 @@ builder
     .AddData()
     .AddApplicationServices()
     .AddBearerAuthentication()
+    .AddSignalRServices()
     .AddSwagger();
 
 builder.Services.AddControllers();
