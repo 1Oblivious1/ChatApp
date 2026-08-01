@@ -50,10 +50,10 @@ public class RoomsController : ControllerBase
         Name = room.Name,
         IsDirect = room.IsDirect,
         CreatedAt = room.CreatedAt,
-        Members = room.Members.Select(m => new RoomMemberResponse
+        Members = [.. room.Members.Select(m => new RoomMemberResponse
         {
             UserId = m.UserId,
             UserName = m.User.UserName
-        }).ToList()
+        })]
     };
 }

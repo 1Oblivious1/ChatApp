@@ -1,4 +1,5 @@
 using ChatApp.Api.Extensions;
+using ChatApp.Api.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,5 +28,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();

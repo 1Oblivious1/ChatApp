@@ -1,6 +1,6 @@
 ﻿using ChatApp.Api.Models;
 
-namespace ChatApp.Api.Services;
+namespace ChatApp.Api.Services.Abstractions;
 
 public interface IMessageService
 {

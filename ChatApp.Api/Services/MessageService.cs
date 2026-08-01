@@ -1,5 +1,6 @@
 ﻿using ChatApp.Api.Data;
 using ChatApp.Api.Models;
+using ChatApp.Api.Services.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
 namespace ChatApp.Api.Services;
