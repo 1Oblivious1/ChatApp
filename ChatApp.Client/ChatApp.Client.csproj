@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<InvariantGlobalization>true</InvariantGlobalization>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- SignalR-клиент для подключения к ChatHub -->
+		<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.8" />
+
+		<!-- GetFromJsonAsync/PostAsJsonAsync и т.д. — в консольном проекте (не Sdk.Web)
+         эти extension-методы не входят в shared framework по умолчанию -->
+		<PackageReference Include="System.Net.Http.Json" Version="8.0.1" />
+	</ItemGroup>
+
+</Project>
