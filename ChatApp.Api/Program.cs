@@ -9,6 +9,7 @@ builder
     .AddApplicationServices()
     .AddBearerAuthentication()
     .AddSignalRServices()
+    .AddCorsPolicy()
     .AddSwagger();
 
 builder.Services.AddControllers();

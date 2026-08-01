@@ -1,6 +1,6 @@
 ﻿using ChatApp.Api.Models;
 
-namespace ChatApp.Api.Services.Abstractions;
+namespace ChatApp.Api.Services;
 
 public interface IMessageService
 {
@@ -13,4 +13,8 @@ public interface IMessageService
     Task<bool> IsMemberAsync(Guid roomId, Guid userId);
 
     Task<Message> SaveMessageAsync(Guid roomId, Guid senderId, string content);
+
+    /// <summary>Курсорная пагинация: beforeId=null — самые свежие сообщения,
+    /// beforeId=X — сообщения старше X (для подгрузки истории при скролле вверх).</summary>
+    Task<List<Message>> GetMessagesAsync(Guid roomId, long? beforeId, int take);
 }

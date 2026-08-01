@@ -34,7 +34,7 @@ public static class ServiceCollectionExtensions
 
             options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
             {
-                [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+                [new OpenApiSecuritySchemeReference("Bearer", document)] = []
             });
         });
 
@@ -99,11 +99,36 @@ public static class ServiceCollectionExtensions
     {
         builder.Services.AddScoped<ITokenService, TokenService>();
         builder.Services.AddScoped<IMessageService, MessageService>();
+        builder.Services.AddScoped<IRoomService, RoomService>();
 
         // Singleton — трекер соединений должен жить одним общим экземпляром на всё
         // приложение (в памяти процесса), а не создаваться заново на каждый запрос,
         // как это было бы со Scoped.
         builder.Services.AddSingleton<IConnectionTracker, InMemoryConnectionTracker>();
+
+        return builder;
+    }
+
+    public static WebApplicationBuilder AddCorsPolicy(this WebApplicationBuilder builder)
+    {
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+            ?? [];
+
+        builder.Services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(policy =>
+            {
+                policy.WithOrigins(allowedOrigins)
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    // AllowCredentials обязателен для SignalR (нужны куки/заголовки на
+                    // WebSocket-хендшейке) — но именно поэтому WithOrigins() выше НЕ должен
+                    // быть AllowAnyOrigin(): спецификация CORS запрещает сочетать
+                    // "разрешить куки/креды" с "разрешить вообще любой origin" одновременно,
+                    // это была бы дыра, позволяющая любому сайту делать авторизованные запросы.
+                    .AllowCredentials();
+            });
+        });
 
         return builder;
     }

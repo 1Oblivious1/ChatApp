@@ -1,6 +1,5 @@
 ﻿using ChatApp.Api.Data;
 using ChatApp.Api.Models;
-using ChatApp.Api.Services.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
 namespace ChatApp.Api.Services;
@@ -43,5 +42,26 @@ public class MessageService : IMessageService
         await _db.SaveChangesAsync();
 
         return message;
+    }
+
+    public async Task<List<Message>> GetMessagesAsync(Guid roomId, long? beforeId, int take)
+    {
+        // Ограничиваем take жёстко на сервере — иначе клиент мог бы запросить take=1000000
+        // и создать неожиданную нагрузку на БД и сеть
+        take = Math.Clamp(take, 1, 100);
+
+        var query = _db.Messages
+            .Include(m => m.Sender)
+            .Where(m => m.RoomId == roomId && !m.IsDeleted);
+
+        if (beforeId is not null)
+            query = query.Where(m => m.Id < beforeId);
+
+        // DESC по Id — индекс (RoomId, Id) полностью покрывает и фильтр, и сортировку,
+        // отдельного шага сортировки в плане запроса не будет
+        return await query
+            .OrderByDescending(m => m.Id)
+            .Take(take)
+            .ToListAsync();
     }
 }
