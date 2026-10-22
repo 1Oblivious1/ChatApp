@@ -9,7 +9,13 @@ public class ApiClient
 {
     private readonly HttpClient _http;
     private string? _accessToken;
+    private DateTime _accessTokenExpiresAt;
     private string? _refreshToken;
+
+    // Refresh теперь может запуститься одновременно из REST-запроса и из реконнекта хаба.
+    // Без блокировки оба отправили бы ОДИН и тот же refresh-токен, и сервер принял бы
+    // второй запрос за кражу и отозвал бы все сессии.
+    private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
     public Guid? CurrentUserId { get; private set; }
     public string? CurrentUserName { get; private set; }
@@ -20,7 +26,20 @@ public class ApiClient
         _http = new HttpClient { BaseAddress = new Uri(baseUrl) };
     }
 
-    public string? AccessToken => _accessToken;
+    /// <summary>
+    /// Access-токен для подключения к хабу. Сообщения ходят через SignalR, а не через REST,
+    /// поэтому SendWithRefreshAsync в долгом чате ни разу не вызывается и токен успевает
+    /// протухнуть — тогда при реконнекте хаб получил бы 401. Здесь обновляем его заранее.
+    /// </summary>
+    public async Task<string?> GetValidAccessTokenAsync()
+    {
+        // Небольшой запас на рассинхрон часов клиента и сервера (на сервере ClockSkew = 0)
+        if (DateTime.UtcNow < _accessTokenExpiresAt - TimeSpan.FromSeconds(30))
+            return _accessToken;
+
+        await TryRefreshAsync();
+        return _accessToken;
+    }
 
     private void ApplyAuthHeader()
     {
@@ -32,6 +51,7 @@ public class ApiClient
     private void SetTokens(AuthResponse auth)
     {
         _accessToken = auth.AccessToken;
+        _accessTokenExpiresAt = auth.AccessTokenExpiresAt;
         _refreshToken = auth.RefreshToken;
         CurrentUserId = auth.UserId;
         CurrentUserName = auth.UserName;
@@ -69,15 +89,23 @@ public class ApiClient
 
     private async Task<bool> TryRefreshAsync()
     {
-        if (_refreshToken is null) return false;
+        await _refreshLock.WaitAsync();
+        try
+        {
+            if (_refreshToken is null) return false;
 
-        var response = await _http.PostAsJsonAsync("/api/auth/refresh", new { refreshToken = _refreshToken });
-        if (!response.IsSuccessStatusCode)
-            return false;
+            var response = await _http.PostAsJsonAsync("/api/auth/refresh", new { refreshToken = _refreshToken });
+            if (!response.IsSuccessStatusCode)
+                return false;
 
-        var auth = await response.Content.ReadFromJsonAsync<AuthResponse>();
-        SetTokens(auth!);
-        return true;
+            var auth = await response.Content.ReadFromJsonAsync<AuthResponse>();
+            SetTokens(auth!);
+            return true;
+        }
+        finally
+        {
+            _refreshLock.Release();
+        }
     }
 
     /// <summary>

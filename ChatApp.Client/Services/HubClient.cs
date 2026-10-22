@@ -12,16 +12,16 @@ public class HubClient : IAsyncDisposable
     public event Action<Guid>? UserOffline;
     public event Action<Guid, Guid>? UserTyping; // (userId, roomId)
 
-    public HubClient(string baseUrl, Func<string?> getAccessToken)
+    public HubClient(string baseUrl, Func<Task<string?>> getAccessToken)
     {
         _connection = new HubConnectionBuilder()
             .WithUrl($"{baseUrl}/hubs/chat", options =>
             {
                 // AccessTokenProvider вызывается заново при каждой (пере)попытке
-                // подключения — если мы обновили accessToken через ApiClient
-                // (после refresh), SignalR подхватит актуальный токен сам,
-                // без ручной пересборки соединения.
-                options.AccessTokenProvider = () => Task.FromResult(getAccessToken());
+                // подключения — getAccessToken при необходимости сам обновит
+                // протухший токен через refresh, так что реконнект после долгой
+                // работы не упрётся в 401.
+                options.AccessTokenProvider = getAccessToken;
             })
             .WithAutomaticReconnect()
             .Build();

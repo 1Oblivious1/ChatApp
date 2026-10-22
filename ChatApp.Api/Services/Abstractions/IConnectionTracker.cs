@@ -10,4 +10,7 @@ public interface IConnectionTracker
     /// соединения (например, открыта другая вкладка), false — если это было последнее
     /// и юзер теперь оффлайн.</summary>
     Task<bool> RemoveConnectionAsync(Guid userId, string connectionId);
+
+    /// <summary>Все активные соединения юзера (пустой список, если он оффлайн).</summary>
+    Task<IReadOnlyList<string>> GetConnectionsAsync(Guid userId);
 }

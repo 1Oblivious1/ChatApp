@@ -9,11 +9,13 @@ namespace ChatApp.Api.Hubs;
 public class ChatHub : Hub
 {
     private readonly IMessageService _messages;
+    private readonly IRoomService _rooms;
     private readonly IConnectionTracker _tracker;
 
-    public ChatHub(IMessageService messages, IConnectionTracker tracker)
+    public ChatHub(IMessageService messages, IRoomService rooms, IConnectionTracker tracker)
     {
         _messages = messages;
+        _rooms = rooms;
         _tracker = tracker;
     }
 
@@ -33,7 +35,7 @@ public class ChatHub : Hub
         // Оповещаем остальных, только если юзер только что стал онлайн — если это вторая
         // вкладка того же юзера, для остальных участников чата ничего не изменилось
         if (isFirstConnection)
-            await Clients.Others.SendAsync("UserOnline", UserId);
+            await NotifyContactsAsync("UserOnline");
 
         await base.OnConnectedAsync();
     }
@@ -43,9 +45,23 @@ public class ChatHub : Hub
         var stillOnline = await _tracker.RemoveConnectionAsync(UserId, Context.ConnectionId);
 
         if (!stillOnline)
-            await Clients.Others.SendAsync("UserOffline", UserId);
+            await NotifyContactsAsync("UserOffline");
 
         await base.OnDisconnectedAsync(exception);
+    }
+
+    private async Task NotifyContactsAsync(string method)
+    {
+        // Не Clients.Others: тогда статус любого юзера видели бы вообще все подключённые,
+        // включая тех, с кем у него нет ни одного общего чата. Clients.Users, а не
+        // Clients.Groups по комнатам — чтобы юзер из нескольких общих комнат не получил
+        // одно и то же событие несколько раз. Id юзера для SignalR берётся из того же
+        // NameIdentifier-клейма (DefaultUserIdProvider).
+        var contactIds = await _rooms.GetContactIdsAsync(UserId);
+        if (contactIds.Count == 0)
+            return;
+
+        await Clients.Users([.. contactIds.Select(id => id.ToString())]).SendAsync(method, UserId);
     }
 
     public async Task SendMessage(Guid roomId, string content)

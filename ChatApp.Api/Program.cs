@@ -23,6 +23,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(); // доступно на /swagger
 }
 
+// CORS обязан стоять до аутентификации: preflight-запрос (OPTIONS) приходит без
+// токена, и если до него дойдёт [Authorize], браузер получит 401 вместо CORS-заголовков
+app.UseCors();
+
 app.UseAuthentication();
 app.UseAuthorization();
 

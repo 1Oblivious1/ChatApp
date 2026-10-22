@@ -5,6 +5,7 @@ using ChatApp.Api.Services.Abstractions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace ChatApp.Api.Controllers;
 
@@ -15,6 +16,8 @@ public class AuthController(AppDbContext db, ITokenService tokens, IConfiguratio
     private readonly AppDbContext _db = db;
     private readonly ITokenService _tokens = tokens;
     private readonly IConfiguration _config = config;
+
+    private Guid UserId => Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
@@ -62,7 +65,7 @@ public class AuthController(AppDbContext db, ITokenService tokens, IConfiguratio
         if (stored is null)
             return Unauthorized(new { message = "Недействительный refresh-токен" });
 
-        if (!stored.IsActive)
+        if (stored.RevokedAt is not null)
         {
             // Токен уже был отозван/использован, но кто-то пытается использовать его снова —
             // явный признак кражи токена. Реагируем максимально консервативно:
@@ -78,6 +81,11 @@ public class AuthController(AppDbContext db, ITokenService tokens, IConfiguratio
             await _db.SaveChangesAsync();
             return Unauthorized(new { message = "Токен уже был использован, все сессии отозваны" });
         }
+
+        // Просто истёкший токен — не признак кражи (юзер мог не заходить дольше
+        // RefreshTokenDays), поэтому остальные сессии не трогаем, только просим перелогиниться.
+        if (!stored.IsActive)
+            return Unauthorized(new { message = "Срок действия refresh-токена истёк" });
 
         // Ротация: старый токен отзываем, выдаём новый. Так каждый refresh-токен
         // используется ровно один раз — это и есть механизм детекта кражи выше.
@@ -97,7 +105,10 @@ public class AuthController(AppDbContext db, ITokenService tokens, IConfiguratio
         var hash = _tokens.HashToken(request.RefreshToken);
         var stored = await _db.RefreshTokens.FirstOrDefaultAsync(rt => rt.TokenHash == hash);
 
-        if (stored is not null)
+        // Отзываем только собственный токен: иначе любой авторизованный юзер мог бы
+        // разлогинить чужую сессию, зная её refresh-токен. Ответ одинаковый в обоих
+        // случаях, чтобы не подсказывать, существует ли такой токен.
+        if (stored is not null && stored.UserId == UserId)
         {
             stored.RevokedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();

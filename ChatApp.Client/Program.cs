@@ -2,9 +2,12 @@
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-Console.Write("Адрес сервера [http://localhost:5000]: ");
+// По умолчанию — http-профиль из ChatApp.Api/Properties/launchSettings.json
+const string defaultBaseUrl = "http://localhost:5273";
+
+Console.Write($"Адрес сервера [{defaultBaseUrl}]: ");
 var baseUrlInput = Console.ReadLine();
-var baseUrl = string.IsNullOrWhiteSpace(baseUrlInput) ? "http://localhost:5000" : baseUrlInput;
+var baseUrl = string.IsNullOrWhiteSpace(baseUrlInput) ? defaultBaseUrl : baseUrlInput;
 
 var api = new ApiClient(baseUrl);
 
@@ -16,10 +19,9 @@ if (!api.IsAuthenticated)
     return;
 }
 
-// HubClient создаётся один раз после логина. AccessTokenProvider читает токен через
-// api.AccessToken каждый раз заново — если ApiClient за время работы обновит токен
-// через refresh, хаб на следующем реконнекте возьмёт уже новый.
-await using var hub = new HubClient(baseUrl, () => api.AccessToken);
+// HubClient создаётся один раз после логина. На каждом (пере)подключении хаб
+// запрашивает токен заново, и если тот уже протух, ApiClient сначала обновит его через refresh.
+await using var hub = new HubClient(baseUrl, api.GetValidAccessTokenAsync);
 
 hub.MessageReceived += msg =>
 {

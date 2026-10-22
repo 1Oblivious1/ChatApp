@@ -58,4 +58,13 @@ public class RoomService : IRoomService
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
     }
+
+    public async Task<List<Guid>> GetContactIdsAsync(Guid userId)
+    {
+        return await _db.RoomMembers
+            .Where(rm => rm.UserId != userId && rm.Room.Members.Any(m => m.UserId == userId))
+            .Select(rm => rm.UserId)
+            .Distinct()
+            .ToListAsync();
+    }
 }

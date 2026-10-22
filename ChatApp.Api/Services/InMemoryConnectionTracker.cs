@@ -53,4 +53,18 @@ public class InMemoryConnectionTracker : IConnectionTracker
             return Task.FromResult(true); // остались другие соединения -> юзер всё ещё онлайн
         }
     }
+
+    public Task<IReadOnlyList<string>> GetConnectionsAsync(Guid userId)
+    {
+        lock (_lock)
+        {
+            // Возвращаем копию: HashSet меняется под локом из хаба, а вызывающий код
+            // будет перебирать результат уже после выхода из lock
+            IReadOnlyList<string> result = _connections.TryGetValue(userId, out var set)
+                ? [.. set]
+                : [];
+
+            return Task.FromResult(result);
+        }
+    }
 }
